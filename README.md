@@ -33,6 +33,27 @@ make all
 
 ## Development
 
+### Install
+
+```bash
+pip install -e .
+```
+
+### Usage
+
+```bash
+your-cli --help
+your-cli compute add 1 2
+your-cli dev new-plugin compute mul --short-help "Multiply two integers."
+```
+
+### Plugin contract
+
+Plugins are discovered from `src/your_cli/commands/<command>/<subcommand>/`:
+
+- `entry.py` (required) exports `cli`, a `click.Command` instance.
+- `meta.yaml` (required) must be a YAML mapping with a non-empty `shortHelp`.
+
 ### Available Commands
 
 ```bash
@@ -69,11 +90,10 @@ Use `ENV=prod make <target>` to load environment-specific settings.
 ```
 .
 ├── src/                    # Source code
-│   └── hello-world.py     # Example script
-├── test/                  # Test files
-│   └── test_hello_world.py
-├── pyproject.toml         # Project configuration
-├── Makefile               # Development automation
+│   └── your_cli/           # CLI package
+├── tests/                  # Test files
+├── pyproject.toml          # Project configuration
+├── Makefile                # Development automation
 └── README.md
 ```
 
