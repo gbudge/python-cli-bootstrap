@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Build and distribution
+build/
+dist/
+.build/
+.dist/
+*.egg-info/
+.eggs/
+
+# Testing and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+junit.xml
+.tox/
+
+# Type checking and linting
+.mypy_cache/
+.ruff_cache/
+.pytype/
+.pyright/
+
+# Environment files (keep .env as template, ignore local/specific)
+.env.local
+.env.dev
+.env.prod
+.env.staging
+.env.test
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Documentation builds
+site/
+docs/_build/
+
+# Project-specific
+*.log

@@ -1,0 +1,100 @@
+[project]
+name = "python-bootstrap"
+version = "1.0.0"
+description = "Simple Python project template with Ruff, Pyright, and Pytest configured."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+  { name = "<your-name>", email = "<your-email>" }
+]
+
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "ruff>=0.4.0",
+  "pyright>=1.1.380",
+  "pytest>=8.0",
+  "pytest-cov>=5.0",
+  "pip-audit>=2.0",
+  "bandit>=1.7.0",
+  "bump>=1.3.0",
+]
+
+# ------------------------------------------------------------------------------
+# Ruff (lint + format)
+# ------------------------------------------------------------------------------
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+fix = true
+show-fixes = true
+src = ["src"]
+
+[tool.ruff.format]
+line-ending = "lf"
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+docstring-code-format = true
+docstring-code-line-length = 120
+
+[tool.ruff.lint]
+select = [
+  "E",    # pycodestyle errors
+  "F",    # pyflakes
+  "W",    # pycodestyle warnings
+  "I",    # isort
+  "B",    # flake8-bugbear
+  "UP",   # pyupgrade
+  "SIM",  # flake8-simplify
+  "C4",   # flake8-comprehensions
+  "PL",   # pylint (subset, sane)
+]
+ignore = [
+  "E203", # whitespace before ':' (Black/Ruff formatter compatible)
+  "E501", # line length handled by formatter
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["PLR2004"]  # magic values OK in tests
+
+# ------------------------------------------------------------------------------
+# Pyright (type checking – VS Code / Pylance parity)
+# ------------------------------------------------------------------------------
+[tool.pyright]
+pythonVersion = "3.10"
+typeCheckingMode = "standard"
+reportMissingTypeStubs = false
+reportUnknownMemberType = false
+reportUnknownVariableType = false
+reportUnknownArgumentType = false
+reportPrivateImportUsage = false
+
+include = ["src"]
+exclude = [
+  "**/__pycache__",
+  ".venv",
+  "build",
+  "dist",
+]
+
+# ------------------------------------------------------------------------------
+# Pytest
+# ------------------------------------------------------------------------------
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-ra -q"
+testpaths = ["tests"]
+
+# ------------------------------------------------------------------------------
+# Coverage (optional but common)
+# ------------------------------------------------------------------------------
+[tool.coverage.run]
+branch = true
+source = ["src"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
