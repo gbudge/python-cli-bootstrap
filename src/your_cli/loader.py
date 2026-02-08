@@ -17,6 +17,8 @@ class CommandSpec:
     subcommand: str
     entry_path: Path
     meta_path: Path
+    import_command: str
+    import_subcommand: str
 
 
 def _safe_name(name: str) -> str:
@@ -44,8 +46,10 @@ def discover_specs(commands_dir: Path) -> Dict[str, Dict[str, CommandSpec]]:
 
     for command_dir in sorted(p for p in commands_dir.iterdir() if p.is_dir()):
         command_name = _safe_name(command_dir.name)
+        import_command = command_dir.name
         for sub_dir in sorted(p for p in command_dir.iterdir() if p.is_dir()):
             sub_name = _safe_name(sub_dir.name)
+            import_subcommand = sub_dir.name
             entry_path = sub_dir / "entry.py"
             meta_path = sub_dir / "meta.yaml"
             missing: list[str] = []
@@ -68,6 +72,8 @@ def discover_specs(commands_dir: Path) -> Dict[str, Dict[str, CommandSpec]]:
                 subcommand=sub_name,
                 entry_path=entry_path,
                 meta_path=meta_path,
+                import_command=import_command,
+                import_subcommand=import_subcommand,
             )
 
     if errors:
@@ -78,7 +84,9 @@ def discover_specs(commands_dir: Path) -> Dict[str, Dict[str, CommandSpec]]:
 
 def load_click_command(spec: CommandSpec) -> click.Command:
     meta = load_meta(spec.meta_path)
-    module_name = f"your_cli.commands.{spec.command}.{spec.subcommand}.entry"
+    module_name = (
+        f"your_cli.commands.{spec.import_command}.{spec.import_subcommand}.entry"
+    )
     module_spec = util.spec_from_file_location(module_name, spec.entry_path)
     if module_spec is None or module_spec.loader is None:
         raise RuntimeError(f"Failed to import entry.py at {spec.entry_path}")
