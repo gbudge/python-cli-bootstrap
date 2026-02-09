@@ -120,3 +120,30 @@ source = ["src"]
 [tool.coverage.report]
 show_missing = true
 skip_covered = true
+
+# ------------------------------------------------------------------------------
+# Bandit vulnerability scanner
+# ------------------------------------------------------------------------------
+[tool.bandit]
+# Paths to exclude (glob patterns)
+exclude_dirs = [
+    ".venv",
+    "venv",
+    "__pycache__",
+    "build",
+    "dist",
+    ".git"
+]
+
+# Specific test IDs to skip
+# skips = [
+#     "B101",  # assert_used
+#     "B601",  # paramiko_calls
+#     "B404"   # import_subprocess
+# ]
+
+# Only run specific tests (optional - omit to run all)
+# tests = ["B201", "B301", "B302"]
+
+# Exclude specific files (glob patterns)
+# exclude = ["*/test_*.py", "*/conftest.py"]

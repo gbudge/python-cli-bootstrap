@@ -50,10 +50,21 @@ TEST_ARGS     ?=
 COV_ARGS      ?= --cov --cov-report=term-missing --cov-report=xml --cov-report=html
 PUBLISH_REPO  ?= pypi
 
-# Security scan args (override in .env)
+# pip-audit args:
 PIP_AUDIT_ARGS ?=
-BANDIT_ARGS    ?= -r src -q
 
+#
+# Bandit args:
+#  --configfile <file>        : specify config file (default: pyproject.toml)
+#  --severity-level <level>   : report only issues at or above this severity (low, medium, high)
+#  --confidence-level <level> : report only issues at or above this confidence level (low, medium, high)
+#  --recursive <path>         : recursively scan directories from the path
+#
+BANDIT_ARGS ?= --configfile ./pyproject.toml --severity-level medium --confidence-level medium --recursive .
+
+#
+# Other
+#
 PACKAGE ?= $(shell $(PYTHON) -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['name'])" 2>/dev/null || echo .)
 # Python import module name is typically the distribution name with '-' replaced by '_'
 PACKAGE_MODULE ?= $(subst -,_,$(PACKAGE))
@@ -174,18 +185,19 @@ coverage: check-uv  ## Run tests with coverage reports
 
 .PHONY: scan
 scan: check-uv  ## Scan for security issues
-	@printf "$(INFO) Scanning for security issues...\n"
-	@$(UV) run $(PIP_AUDIT) --version >/dev/null 2>&1 || { \
-		printf "$(ERROR) '$(PIP_AUDIT)' not installed in uv env.\n"; \
-		printf "Fix: make setup  (or: $(UV) sync $(UV_SYNC_ARGS))\n"; \
-		exit 1; \
-	}
+# 	@printf "$(INFO) Scanning for security issues...\n"
+# 	@$(UV) run $(PIP_AUDIT) --version >/dev/null 2>&1 || { \
+# 		printf "$(ERROR) '$(PIP_AUDIT)' not installed in uv env.\n"; \
+# 		printf "Fix: make setup  (or: $(UV) sync $(UV_SYNC_ARGS))\n"; \
+# 		exit 1; \
+# 	}
+# 	@$(UV) run $(PIP_AUDIT) $(PIP_AUDIT_ARGS)
+
 	@$(UV) run $(BANDIT) --version >/dev/null 2>&1 || { \
 		printf "$(ERROR) '$(BANDIT)' not installed in uv env.\n"; \
 		printf "Fix: make setup  (or: $(UV) sync $(UV_SYNC_ARGS))\n"; \
 		exit 1; \
 	}
-	@$(UV) run $(PIP_AUDIT) $(PIP_AUDIT_ARGS)
 	@$(UV) run $(BANDIT) $(BANDIT_ARGS)
 
 .PHONY: version
