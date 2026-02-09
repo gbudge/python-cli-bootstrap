@@ -1,99 +1,114 @@
-# python-bootstrap
+# your-cli
 
-A simple Python project template with modern tooling and best practices.
+A small reference project that demonstrates a Click-based Python CLI with a simple *plugin-style* command discovery mechanism and modern tooling.
 
 ## Features
 
-- **Package Management**: [uv](https://docs.astral.sh/uv/) for fast, reliable dependency management
-- **Code Quality**: Ruff for linting and formatting, Pyright for type checking
-- **Testing**: pytest with coverage support
-- **Security**: pip-audit and bandit for vulnerability scanning
-- **Automation**: Makefile with common development tasks
-- **Versioning**: bump for easily version increments
+- **CLI framework**: [Click](https://click.palletsprojects.com/)
+- **Dynamic command loading**: commands are discovered from the `src/your_cli/commands/` tree and loaded lazily at runtime
+- **Package management**: [uv](https://docs.astral.sh/uv/) for fast dependency management
+- **Code quality**: Ruff (lint + format) and Pyright (type checking)
+- **Testing**: pytest (with coverage support)
+- **Security**: pip-audit and bandit
+- **Automation**: a Makefile with common tasks
 
-## Quick Start
+## Quick start
 
 ### Prerequisites
 
-Install [uv](https://docs.astral.sh/uv/):
-
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
+Install [uv](https://docs.astral.sh/uv/).
 
 ### Setup
 
+Create / sync the project environment (this installs the project in editable mode, including the `your-cli` console script):
+
 ```bash
-# Install dependencies
 make setup
-
-# Run the full pipeline (clean, setup, format, lint, test, scan)
-make all
 ```
 
-## Development
-
-### Install
+### Run the CLI
 
 ```bash
-pip install -e .
+uv run your-cli --help
+uv run your-cli compute add 1 2
+uv run your-cli net ping 1.1.1.1 --count 1
 ```
 
-### Usage
+Notes:
+- If you skip `make setup`, you can run `uv sync --locked --all-extras --dev` directly.
+- To install explicitly (editable) and see post-install hints, run `make install`.
+- The Python-module equivalent of `your-cli --help` is: `uv run python -m your_cli.main --help`.
+
+## Commands
+
+This repository includes example commands:
+
+- `compute add <a> <b>`
+- `compute sub <a> <b>`
+- `net ping <host> [--count N]`
+
+## Plugin contract (command discovery)
+
+Commands are discovered from:
+
+```
+src/your_cli/commands/<command>/<subcommand>/
+```
+
+Each plugin directory must contain:
+
+- `entry.py` (required): exports `cli`, a `click.Command` (typically created with `@click.command()`)
+- `meta.yaml` (required): a YAML mapping containing a non-empty `shortHelp` string
+
+At runtime, the root command lists available command groups and loads subcommands only when invoked.
+
+### Developer utility: create a new plugin skeleton
 
 ```bash
-your-cli --help
-your-cli compute add 1 2
-your-cli dev new-plugin compute mul --short-help "Multiply two integers."
+uv run your-cli dev new-plugin compute mul --short-help "Multiply two integers."
 ```
 
-### Plugin contract
+If you want to generate plugins into a different directory during development, set:
 
-Plugins are discovered from `src/your_cli/commands/<command>/<subcommand>/`:
+- `YOUR_CLI_COMMANDS_DIR` (used by the `dev new-plugin` helper)
 
-- `entry.py` (required) exports `cli`, a `click.Command` instance.
-- `meta.yaml` (required) must be a YAML mapping with a non-empty `shortHelp`.
-
-### Available Commands
+## Development tasks
 
 ```bash
-  all              Run build & test pipeline
-  build            Build sdist and wheel
-  bump             Bump Z patch version (X.Y.Z -> X.Y.Z+1)
-  bump-major       Bump X major version (X.Y.Z -> X+1.0.0)
-  bump-minor       Bump Y minor version (X.Y.Z -> X.Y+1.0)
-  check-uv         Check uv exists and print version
-  clean            Remove build, cache and temp files
-  format           Format code and apply fixes
-  help             Show available make targets
-  lint             Lint code and type-check
-  package          Clean and build artifacts
-  publish          Upload artifacts to PyPI
-  scan             Scan for security issues
-  setup            Install dependencies
-  tests            Run test suite
-  version          Show current version
+make format
+make lint
+make test
+make coverage
+make scan
 ```
 
-### Environment Configuration
+## Environment configuration
 
-The project supports environment-specific configuration via `.env` files:
+The Makefile supports environment-specific configuration via `.env` files:
 
-- `.env` - Base configuration
-- `.env.local` - Local overrides (gitignored)
-- `.env.$(ENV)` - Environment-specific (e.g., `.env.dev`, `.env.prod`)
+- `.env` (base)
+- `.env.local` (local overrides, gitignored)
+- `.env.$(ENV)` (environment-specific; e.g. `.env.dev`, `.env.prod`)
 
-Use `ENV=prod make <target>` to load environment-specific settings.
+Example:
 
-## Project Structure
+```bash
+ENV=prod make lint
+```
+
+## Project structure
 
 ```
 .
-├── src/                    # Source code
-│   └── your_cli/           # CLI package
-├── tests/                  # Test files
-├── pyproject.toml          # Project configuration
-├── Makefile                # Development automation
+├── src/
+│   └── your_cli/
+│       ├── commands/           # Dynamic command plugins
+│       ├── dev.py              # Developer utilities ("your-cli dev …")
+│       ├── loader.py           # Command discovery + lazy loader
+│       └── main.py             # Console entry point
+├── tests/
+├── pyproject.toml
+├── Makefile
 └── README.md
 ```
 

@@ -4,7 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog], and this project adheres to [Semantic Versioning].
 
-## [1.0.0] - 2026-02-08
+## 1.1.0 - 2026-02-09
+
+### Added
+- New [Makefile] stage `install` for local editable developer install
+- Additional [tests], improving code coverage to >90%
+
+### Changed
+- Numerous linting and formatting fixes
+- Documentation in the [README.md] file
+- Modified [Makefile] stage `clean` to also remove the `.venv` directory
+
+## 1.0.0 - 2026-02-08
 
 ### Added
 - Initial project structure with `src/` and `test/` directories
@@ -20,9 +31,18 @@ The format is based on [Keep a Changelog], and this project adheres to [Semantic
 - MIT License
 - .gitignore for Python projects
 
+## References
+- [README.md]
+- [CHANGELOG.md]
+- [Makefile]
+- [Source Code][src]
+- [Test Cases][tests]
+
 <!-- Markdown Links -->
 [Keep a Changelog]: https://keepachangelog.com/en/1.1.0/
 [Semantic Versioning]: https://semver.org/spec/v2.0.0.html
-
-[Unreleased]: https://github.com/gbudge/python-bootstrap/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/gbudge/python-bootstrap/releases/tag/v1.0.0
+[Makefile]: Makefile
+[README.md]: README.md
+[CHANGELOG.md]: CHANGELOG.md
+[tests]: tests/
+[src]: src/

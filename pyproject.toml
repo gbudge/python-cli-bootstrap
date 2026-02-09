@@ -1,3 +1,10 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.uv]
+package = true
+
 [project]
 name = "your-cli"
 version = "1.0.0"
@@ -6,7 +13,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [
-  { name = "<your-name>", email = "<your-email>" }
+  { name = "changeme", email = "changeme@local.local" }
 ]
 
 dependencies = [
