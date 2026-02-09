@@ -44,7 +44,7 @@ PIP_AUDIT     ?= pip-audit
 BANDIT        ?= bandit
 BUMP          ?= bump
 
-UV_SYNC_ARGS  ?= --all-extras --dev
+UV_SYNC_ARGS  ?= --all-extras --dev --locked
 BUILD_ARGS    ?=
 TEST_ARGS     ?=
 COV_ARGS      ?= --cov --cov-report=term-missing --cov-report=xml --cov-report=html
@@ -55,6 +55,8 @@ PIP_AUDIT_ARGS ?=
 BANDIT_ARGS    ?= -r src -q
 
 PACKAGE ?= $(shell $(PYTHON) -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['name'])" 2>/dev/null || echo .)
+# Python import module name is typically the distribution name with '-' replaced by '_'
+PACKAGE_MODULE ?= $(subst -,_,$(PACKAGE))
 
 # ----------------------------------------------------------------------------
 # Colors
@@ -107,6 +109,7 @@ clean:  ## Remove build, cache and temp files
 	@printf "$(INFO) Cleaning project artifacts and caches...\n"
 
 	@rm -rf \
+		.venv/ \
 		.build/ \
 		.coverage \
 		.dist/ \
@@ -150,10 +153,12 @@ format: check-uv  ## Format code and apply fixes
 
 .PHONY: lint
 lint: check-uv  ## Lint code and type-check
-	@printf "$(INFO) Linting code...\n"
+	@printf "$(INFO) Linting code using ruff...\n"
 	@$(UV) run $(RUFF) check .
+
+	@printf "$(INFO) Type-checking code using pyright...\n"
 	@$(UV) run $(PYRIGHT)
-	@printf "$(INFO) Linting complete.\n\n"
+	@printf "$(INFO) Type-checking complete.\n\n"
 
 .PHONY: test
 test: check-uv  ## Run test suite
@@ -225,3 +230,11 @@ publish: check-uv  ## Upload artifacts to PyPI
 	@$(UV) run $(TWINE) check dist/*
 	@$(UV) run $(TWINE) upload --repository $(PUBLISH_REPO) dist/*
 	@printf "$(INFO) Publishing complete.\n\n"
+
+.PHONY: install
+install: check-uv  ## Install package in editable mode
+	@printf "$(INFO) Installing package in editable mode...\n"
+	@$(UV) run pip install -e .
+	@printf "$(INFO) Installation complete.\n\n"
+	@printf "$(INFO) You can now run help via Python: $(YELLOW)uv run python -m %s.main --help$(RESET)\n" "$(PACKAGE_MODULE)"
+	@printf "$(INFO) You can now execute the package in the terminal: $(YELLOW)uv run $(PACKAGE) --help$(RESET)\n"

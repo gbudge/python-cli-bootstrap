@@ -25,16 +25,14 @@ def new_plugin(command: str, subcommand: str, short_help: str | None, force: boo
     """Create a new plugin skeleton."""
     for token_name, token in [("command", command), ("subcommand", subcommand)]:
         if not VALID_NAME.match(token):
-            _abort(
-                f"Invalid {token_name} '{token}'. Use only letters, numbers, underscore, and hyphen."
-            )
+            _abort(f"Invalid {token_name} '{token}'. Use only letters, numbers, underscore, and hyphen.")
     commands_dir = _commands_dir()
     target_dir = commands_dir / command / subcommand
     try:
         resolved_target = target_dir.resolve()
         resolved_root = commands_dir.resolve()
         resolved_target.relative_to(resolved_root)
-    except Exception as exc:  # noqa: BLE001
+    except Exception:  # noqa: BLE001
         _abort("Target path must be within commands directory.")
 
     entry_path = target_dir / "entry.py"
@@ -47,11 +45,7 @@ def new_plugin(command: str, subcommand: str, short_help: str | None, force: boo
 
     meta_content = f"shortHelp: {help_text}\n"
     entry_content = (
-        "import click\n\n"
-        "@click.command()\n"
-        "def cli():\n"
-        "    click.echo(\"not implemented\")\n"
-        "    raise SystemExit(2)\n"
+        'import click\n\n@click.command()\ndef cli():\n    click.echo("not implemented")\n    raise SystemExit(2)\n'
     )
     meta_path.write_text(meta_content, encoding="utf-8")
     entry_path.write_text(entry_content, encoding="utf-8")

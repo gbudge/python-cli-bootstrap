@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 from click.testing import CliRunner
@@ -11,9 +10,7 @@ def _write_plugin(base: Path, command: str, subcommand: str, short_help: str = "
     target = base / command / subcommand
     target.mkdir(parents=True, exist_ok=True)
     (target / "entry.py").write_text(
-        "import click\n\n@click.command()\n"
-        "def cli():\n"
-        "    click.echo('ok')\n",
+        "import click\n\n@click.command()\ndef cli():\n    click.echo('ok')\n",
         encoding="utf-8",
     )
     (target / "meta.yaml").write_text(f"shortHelp: {short_help}\n", encoding="utf-8")
