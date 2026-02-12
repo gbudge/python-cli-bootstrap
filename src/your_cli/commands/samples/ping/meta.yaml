@@ -1,0 +1,5 @@
+HelpGroup: Network
+HelpSummary: Ping a host
+hidden: false
+enabled: true
+packaged: false

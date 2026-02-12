@@ -1,12 +1,12 @@
-"""Developer utilities for your_cli."""
+"""Developer utilities."""
 
 from __future__ import annotations
 
-import os
 import re
-from pathlib import Path
 
 import click
+
+from your_cli.utils.metadata import Metadata
 
 VALID_NAME = re.compile(r"^[A-Za-z0-9_-]+$")
 
@@ -26,7 +26,7 @@ def new_plugin(command: str, subcommand: str, short_help: str | None, force: boo
     for token_name, token in [("command", command), ("subcommand", subcommand)]:
         if not VALID_NAME.match(token):
             _abort(f"Invalid {token_name} '{token}'. Use only letters, numbers, underscore, and hyphen.")
-    commands_dir = _commands_dir()
+    commands_dir = Metadata.COMMANDS_DIR
     target_dir = commands_dir / command / subcommand
     try:
         resolved_target = target_dir.resolve()
@@ -52,13 +52,6 @@ def new_plugin(command: str, subcommand: str, short_help: str | None, force: boo
 
     click.echo(str(meta_path))
     click.echo(str(entry_path))
-
-
-def _commands_dir() -> Path:
-    override = os.environ.get("YOUR_CLI_COMMANDS_DIR")
-    if override:
-        return Path(override)
-    return Path(__file__).resolve().parent / "commands"
 
 
 def _abort(message: str) -> None:

@@ -33,12 +33,17 @@ junit.xml
 .pytype/
 .pyright/
 
-# Environment files (keep .env as template, ignore local/specific)
+# Environment files (ignore all .env files with actual secrets)
+.env-build
+.env
 .env.local
 .env.dev
 .env.prod
 .env.staging
 .env.test
+
+# Command-specific .env files (but keep .env.example files)
+src/your_cli/commands/**/.env
 
 # IDE
 .vscode/

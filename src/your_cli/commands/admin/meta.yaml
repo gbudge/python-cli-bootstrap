@@ -1,0 +1,5 @@
+HelpGroup: Advanced
+HelpSummary: Administrative commands for YourCLI
+hidden: true
+enabled: true
+packaged: false

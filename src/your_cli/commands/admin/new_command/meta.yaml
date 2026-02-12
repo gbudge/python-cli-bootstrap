@@ -1,0 +1,5 @@
+# HelpGroup: Commands
+HelpSummary: Create a new command plugin skeleton.
+hidden: false
+enabled: true
+packaged: false

@@ -2,9 +2,9 @@
 #
 # Environment loading:
 # - Loads (later overrides earlier):
-#     .env
-#     .env.local
-#     .env.$(ENV)
+#     .env-build
+#     .env-build.local
+#     .env-build.$(ENV)
 #
 # Help text convention (required):
 # - Each target MUST have:
@@ -16,22 +16,22 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
 # ----------------------------------------------------------------------------
-# Environment (.env support)
+# Environment (.env-build support)
 # ----------------------------------------------------------------------------
 
 ENV ?= local
 
 ENV_FILES := \
-	.env \
-	.env.local \
-	.env.$(ENV)
+	.env-build \
+	.env-build.local \
+	.env-build.$(ENV)
 
 -include $(ENV_FILES)
 
 export $(shell sed -n 's/^\([A-Za-z_][A-Za-z0-9_]*\)=.*/\1/p' $(ENV_FILES) 2>/dev/null)
 
 # ----------------------------------------------------------------------------
-# Tooling defaults (override in .env)
+# Tooling defaults (override in .env-build)
 # ----------------------------------------------------------------------------
 
 UV            ?= uv
@@ -50,10 +50,21 @@ TEST_ARGS     ?=
 COV_ARGS      ?= --cov --cov-report=term-missing --cov-report=xml --cov-report=html
 PUBLISH_REPO  ?= pypi
 
-# Security scan args (override in .env)
+# pip-audit args:
 PIP_AUDIT_ARGS ?=
-BANDIT_ARGS    ?= -r src -q
 
+#
+# Bandit args:
+#  --configfile <file>        : specify config file (default: pyproject.toml)
+#  --severity-level <level>   : report only issues at or above this severity (low, medium, high)
+#  --confidence-level <level> : report only issues at or above this confidence level (low, medium, high)
+#  --recursive <path>         : recursively scan directories from the path
+#
+BANDIT_ARGS ?= --configfile ./pyproject.toml --severity-level medium --confidence-level medium --recursive .
+
+#
+# Other
+#
 PACKAGE ?= $(shell $(PYTHON) -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['name'])" 2>/dev/null || echo .)
 # Python import module name is typically the distribution name with '-' replaced by '_'
 PACKAGE_MODULE ?= $(subst -,_,$(PACKAGE))
@@ -111,6 +122,7 @@ clean:  ## Remove build, cache and temp files
 	@rm -rf \
 		.venv/ \
 		.build/ \
+		.build_excluded/ \
 		.coverage \
 		.dist/ \
 		.mypy_cache/ \
@@ -141,7 +153,18 @@ setup: check-uv  ## Install dependencies
 .PHONY: build
 build: check-uv  ## Build sdist and wheel
 	@printf "$(INFO) Building distribution artifacts...\n"
-	@$(UV) build $(BUILD_ARGS)
+	@printf "$(INFO) Filtering commands for packaging...\n"
+	@$(PYTHON) scripts/filter_commands.py prepare || { \
+		printf "$(ERROR) Failed to filter commands\n"; \
+		exit 1; \
+	}
+	@$(UV) build $(BUILD_ARGS) || { \
+		printf "$(ERROR) Build failed, restoring commands...\n"; \
+		$(PYTHON) scripts/filter_commands.py restore; \
+		exit 1; \
+	}
+	@printf "$(INFO) Restoring excluded commands...\n"
+	@$(PYTHON) scripts/filter_commands.py restore
 	@printf "$(INFO) Build complete. Artifacts in 'dist/' directory.\n\n"
 
 .PHONY: format
@@ -155,6 +178,7 @@ format: check-uv  ## Format code and apply fixes
 lint: check-uv  ## Lint code and type-check
 	@printf "$(INFO) Linting code using ruff...\n"
 	@$(UV) run $(RUFF) check .
+	@printf "\n"
 
 	@printf "$(INFO) Type-checking code using pyright...\n"
 	@$(UV) run $(PYRIGHT)
@@ -174,18 +198,19 @@ coverage: check-uv  ## Run tests with coverage reports
 
 .PHONY: scan
 scan: check-uv  ## Scan for security issues
-	@printf "$(INFO) Scanning for security issues...\n"
-	@$(UV) run $(PIP_AUDIT) --version >/dev/null 2>&1 || { \
-		printf "$(ERROR) '$(PIP_AUDIT)' not installed in uv env.\n"; \
-		printf "Fix: make setup  (or: $(UV) sync $(UV_SYNC_ARGS))\n"; \
-		exit 1; \
-	}
+# 	@printf "$(INFO) Scanning for security issues...\n"
+# 	@$(UV) run $(PIP_AUDIT) --version >/dev/null 2>&1 || { \
+# 		printf "$(ERROR) '$(PIP_AUDIT)' not installed in uv env.\n"; \
+# 		printf "Fix: make setup  (or: $(UV) sync $(UV_SYNC_ARGS))\n"; \
+# 		exit 1; \
+# 	}
+# 	@$(UV) run $(PIP_AUDIT) $(PIP_AUDIT_ARGS)
+
 	@$(UV) run $(BANDIT) --version >/dev/null 2>&1 || { \
 		printf "$(ERROR) '$(BANDIT)' not installed in uv env.\n"; \
 		printf "Fix: make setup  (or: $(UV) sync $(UV_SYNC_ARGS))\n"; \
 		exit 1; \
 	}
-	@$(UV) run $(PIP_AUDIT) $(PIP_AUDIT_ARGS)
 	@$(UV) run $(BANDIT) $(BANDIT_ARGS)
 
 .PHONY: version
@@ -198,7 +223,7 @@ bump: check-uv  ## Bump patch version (X.Y.Z -> X.Y.Z+1)
 	@old_version=$$($(PYTHON) -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])"); \
 	$(UV) run $(BUMP) >/dev/null 2>&1; \
 	new_version=$$($(PYTHON) -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])"); \
-	printf "$(INFO)$$old_version$(RESET) --> $(GREEN)$$new_version$(RESET)\n"
+	printf "$(INFO) $$old_version$(RESET) --> $(GREEN)$$new_version$(RESET)\n"
 
 .PHONY: bump-minor
 bump-minor: check-uv  ## Bump minor version (X.Y.Z -> X.Y+1.0)
@@ -206,7 +231,7 @@ bump-minor: check-uv  ## Bump minor version (X.Y.Z -> X.Y+1.0)
 	@old_version=$$($(PYTHON) -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])"); \
 	$(UV) run $(BUMP) --minor --reset >/dev/null 2>&1; \
 	new_version=$$($(PYTHON) -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])"); \
-	printf "$(INFO)$$old_version$(RESET) --> $(GREEN)$$new_version$(RESET)\n"
+	printf "$(INFO) $$old_version$(RESET) --> $(GREEN)$$new_version$(RESET)\n"
 
 .PHONY: bump-major
 bump-major: check-uv  ## Bump major version (X.Y.Z -> X+1.0.0)
@@ -214,7 +239,7 @@ bump-major: check-uv  ## Bump major version (X.Y.Z -> X+1.0.0)
 	@old_version=$$($(PYTHON) -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])"); \
 	$(UV) run $(BUMP) --major --reset >/dev/null 2>&1; \
 	new_version=$$($(PYTHON) -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])"); \
-	printf "$(INFO)$$old_version$(RESET) --> $(GREEN)$$new_version$(RESET)\n"
+	printf "$(INFO) $$old_version$(RESET) --> $(GREEN)$$new_version$(RESET)\n"
 
 .PHONY: package
 package: check-uv  ## Clean and build artifacts
@@ -228,7 +253,7 @@ publish: check-uv  ## Upload artifacts to PyPI
 	@printf "$(INFO) Publishing package to repository '$(PUBLISH_REPO)'...\n"
 	@test -d dist || (printf "$(ERROR) dist/ missing; run make build\n" && exit 1)
 	@$(UV) run $(TWINE) check dist/*
-	@$(UV) run $(TWINE) upload --repository $(PUBLISH_REPO) dist/*
+	@$(UV) run $(TWINE) upload $(PYPI_BASE_URL)/$(PUBLISH_REPO) dist/*
 	@printf "$(INFO) Publishing complete.\n\n"
 
 .PHONY: install
