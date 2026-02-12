@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog], and this project adheres to [Semantic Versioning].
 
+# 1.2.0 - 2026-02-12
+
+### Changed
+- Various fixes/improvements and shuffling of directory layout.
+
 ## 1.1.0 - 2026-02-09
 
 ### Added
