@@ -68,7 +68,7 @@ def test_dev_new_plugin_rejects_invalid_names(tmp_path: Path) -> None:
     root = RootCommand(commands_dir)
     runner = CliRunner()
 
-    result = runner.invoke(root, ["admin", "new-command", "bad!name", "ok"])
+    result = runner.invoke(root, ["admin", "new-command", "bad!name", "--short-help", "Help"])
 
     assert result.exit_code == 2
     assert "Invalid command" in result.output
@@ -85,20 +85,23 @@ def test_dev_new_plugin_rejects_existing_plugin_without_force(tmp_path: Path, mo
 
     shutil.copytree(admin_src, admin_dst)
 
-    existing = commands_dir / "compute" / "mul"
+    existing = commands_dir / "tools" / "compute"
     existing.mkdir(parents=True)
     (existing / "entry.py").write_text("# existing\n", encoding="utf-8")
-    (existing / "meta.yaml").write_text("HelpSummary: existing\n", encoding="utf-8")
+    (existing / "meta.yaml").write_text("short_help: existing\n", encoding="utf-8")
 
     root = RootCommand(commands_dir)
     runner = CliRunner()
-    result = runner.invoke(root, ["admin", "new-command", "compute", "mul", "--short-help", "Multiply."])
+    result = runner.invoke(
+        root,
+        ["admin", "new-command", "compute", "--parent", "tools", "--short-help", "Compute command."],
+    )
 
     assert result.exit_code == 2
-    assert "Plugin already exists" in result.output
+    assert "Command already exists" in result.output
 
 
-def test_dev_new_plugin_force_overwrites_and_default_help(tmp_path: Path, monkeypatch) -> None:
+def test_dev_new_plugin_force_overwrites(tmp_path: Path, monkeypatch) -> None:
     commands_dir = tmp_path / "commands"
     monkeypatch.setenv("YOUR_CLI_COMMANDS_DIR", str(commands_dir))
 
@@ -109,21 +112,55 @@ def test_dev_new_plugin_force_overwrites_and_default_help(tmp_path: Path, monkey
 
     shutil.copytree(admin_src, admin_dst)
 
-    existing = commands_dir / "compute" / "mul"
+    existing = commands_dir / "tools" / "compute"
     existing.mkdir(parents=True)
     (existing / "entry.py").write_text("# existing\n", encoding="utf-8")
-    (existing / "meta.yaml").write_text("HelpSummary: existing\n", encoding="utf-8")
+    (existing / "meta.yaml").write_text("short_help: existing\n", encoding="utf-8")
 
     root = RootCommand(commands_dir)
     runner = CliRunner()
-    result = runner.invoke(root, ["admin", "new-command", "compute", "mul", "--force"])
+    result = runner.invoke(
+        root,
+        [
+            "admin",
+            "new-command",
+            "compute",
+            "--parent",
+            "tools",
+            "--short-help",
+            "Compute command.",
+            "--force",
+        ],
+    )
 
     assert result.exit_code == 0
     assert "meta.yaml" in result.output
     assert "entry.py" in result.output
 
     meta_text = (existing / "meta.yaml").read_text(encoding="utf-8")
-    assert meta_text.startswith("HelpSummary: TODO: describe compute mul.")
+    assert "short_help: Compute command." in meta_text
+
+
+def test_dev_new_plugin_rejects_invalid_parent_dot_notation(tmp_path: Path, monkeypatch) -> None:
+    commands_dir = tmp_path / "commands"
+    monkeypatch.setenv("YOUR_CLI_COMMANDS_DIR", str(commands_dir))
+
+    # Copy admin command structure to test directory
+    real_commands = Path(__file__).parent.parent / "src" / "your_cli" / "commands"
+    admin_src = real_commands / "admin"
+    admin_dst = commands_dir / "admin"
+
+    shutil.copytree(admin_src, admin_dst)
+
+    root = RootCommand(commands_dir)
+    runner = CliRunner()
+    result = runner.invoke(
+        root,
+        ["admin", "new-command", "compute", "--parent", "github..repo", "--short-help", "Compute command."],
+    )
+
+    assert result.exit_code == 2
+    assert "Invalid --parent" in result.output
 
 
 def test_load_meta_rejects_invalid_yaml(tmp_path: Path) -> None:
@@ -138,13 +175,13 @@ def test_load_meta_rejects_missing_or_empty_short_help(tmp_path: Path) -> None:
     meta_missing = tmp_path / "missing.yaml"
     meta_missing.write_text("{}\n", encoding="utf-8")
 
-    with pytest.raises(RuntimeError, match=r"HelpSummary must be a non-empty string"):
+    with pytest.raises(RuntimeError, match=r"short_help must be a non-empty string"):
         load_meta(meta_missing)
 
     meta_empty = tmp_path / "empty.yaml"
-    meta_empty.write_text("HelpSummary: ''\n", encoding="utf-8")
+    meta_empty.write_text("short_help: ''\n", encoding="utf-8")
 
-    with pytest.raises(RuntimeError, match=r"HelpSummary must be a non-empty string"):
+    with pytest.raises(RuntimeError, match=r"short_help must be a non-empty string"):
         load_meta(meta_empty)
 
 
@@ -177,6 +214,28 @@ def test_discover_specs_ignores_pycache_dirs(tmp_path: Path) -> None:
     assert "bravo" in specs["alpha"].subcommands
 
 
+def test_discover_specs_ignores_dot_prefixed_dirs(tmp_path: Path) -> None:
+    commands_dir = tmp_path / "commands"
+
+    # Dot-prefixed folders are support/scaffolding directories and not commands.
+    (commands_dir / ".scaffolding").mkdir(parents=True)
+    (commands_dir / "alpha" / ".templates").mkdir(parents=True)
+
+    plugin_dir = commands_dir / "alpha" / "bravo"
+    plugin_dir.mkdir(parents=True)
+    (plugin_dir / "entry.py").write_text(
+        "import click\n\n@click.command()\ndef cli():\n    click.echo('ok')\n",
+        encoding="utf-8",
+    )
+    (plugin_dir / "meta.yaml").write_text("shortHelp: ok\n", encoding="utf-8")
+
+    specs = discover_specs(commands_dir)
+
+    assert ".scaffolding" not in specs
+    assert "alpha" in specs
+    assert "bravo" in specs["alpha"].subcommands
+
+
 def test_discover_specs_reports_invalid_meta(tmp_path: Path) -> None:
     commands_dir = tmp_path / "commands"
     plugin_dir = commands_dir / "alpha" / "bravo"
@@ -194,7 +253,7 @@ def test_discover_specs_reports_invalid_meta(tmp_path: Path) -> None:
 def test_load_click_command_requires_entry_file_to_exist(tmp_path: Path) -> None:
     missing_entry = tmp_path / "missing" / "entry.py"
     meta = tmp_path / "meta.yaml"
-    meta.write_text("HelpSummary: ok\nhidden: false\nenabled: true\n", encoding="utf-8")
+    meta.write_text("short_help: ok\nhidden: false\nenabled: true\n", encoding="utf-8")
 
     spec = CommandSpec(
         name="bravo",
@@ -206,6 +265,7 @@ def test_load_click_command_requires_entry_file_to_exist(tmp_path: Path) -> None
         help_group="Commands",
         is_group=False,
         subcommands=None,
+        no_args_is_help=False,
     )
 
     with pytest.raises(RuntimeError, match=r"Failed to import entry\.py"):
@@ -217,7 +277,7 @@ def test_load_click_command_requires_cli_export_to_be_click_command(tmp_path: Pa
     entry.write_text("cli = 123\n", encoding="utf-8")
 
     meta = tmp_path / "meta.yaml"
-    meta.write_text("HelpSummary: ok\nhidden: false\nenabled: true\n", encoding="utf-8")
+    meta.write_text("short_help: ok\nhidden: false\nenabled: true\n", encoding="utf-8")
 
     spec = CommandSpec(
         name="bravo",
@@ -229,6 +289,7 @@ def test_load_click_command_requires_cli_export_to_be_click_command(tmp_path: Pa
         help_group="Commands",
         is_group=False,
         subcommands=None,
+        no_args_is_help=False,
     )
 
     with pytest.raises(RuntimeError, match=r"must export 'cli' as a click\.Command"):

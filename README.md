@@ -52,25 +52,43 @@ This repository includes example commands:
 Commands are discovered from:
 
 ```
-src/your_cli/commands/<command>/<subcommand>/
+src/your_cli/commands/<...nested command path...>/
 ```
 
 Each plugin directory must contain:
 
 - `entry.py` (required): exports `cli`, a `click.Command` (typically created with `@click.command()`)
-- `meta.yaml` (required): a YAML mapping containing a non-empty `shortHelp` string
+- `meta.yaml` (required): a YAML mapping containing a non-empty `short_help` string
+
+Supported `meta.yaml` keys:
+
+- `short_help` (required)
+- `help_group` (optional, default: `Commands`)
+- `enabled` (optional, default: `true`)
+- `hidden` (optional, default: `false`; forced to `true` when `enabled: false`)
+- `packaged` (optional; used for packaging workflows)
+- `no_args_is_help` (optional, default: `false`)
+
+Compatibility note: legacy aliases (`shortHelp`, `HelpSummary`, `HelpGroup`) are still accepted by the loader.
 
 At runtime, the root command lists available command groups and loads subcommands only when invoked.
 
-### Developer utility: create a new plugin skeleton
+Dot-prefixed and `__`-prefixed directories are ignored during command discovery.
+
+### Developer utility: create a new command skeleton
 
 ```bash
-uv run your-cli dev new-plugin compute mul --short-help "Multiply two integers."
+uv run your-cli admin new-command mul --short-help "Multiply two integers."
+uv run your-cli admin new-command mul --parent compute --short-help "Multiply two integers."
+uv run your-cli admin new-command issue --parent github.repo --short-help "Manage repository issues."
 ```
+
+`--parent` uses dot-notation to create nested command paths (`github.repo` => `github/repo`).
+Any missing parent groups are scaffolded automatically.
 
 If you want to generate plugins into a different directory during development, set:
 
-- `YOUR_CLI_COMMANDS_DIR` (used by the `dev new-plugin` helper)
+- `YOUR_CLI_COMMANDS_DIR` (used by the `admin new-command` helper)
 
 ## Development tasks
 

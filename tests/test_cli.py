@@ -149,6 +149,65 @@ def test_disabled_subcommand_fails_execution(tmp_path: Path) -> None:
     assert "disabled" in result_disabled.output.lower()
 
 
+def test_no_args_is_help_is_configurable_per_group_level(tmp_path: Path) -> None:
+    commands_dir = tmp_path / "commands"
+
+    tools_dir = commands_dir / "tools"
+    (tools_dir / "admin" / "show").mkdir(parents=True, exist_ok=True)
+
+    (tools_dir / "entry.py").write_text(
+        "import click\n\n@click.group()\ndef cli():\n    pass\n",
+        encoding="utf-8",
+    )
+    (tools_dir / "meta.yaml").write_text(
+        "shortHelp: Tools commands\nhidden: false\nenabled: true\nno_args_is_help: true\n",
+        encoding="utf-8",
+    )
+
+    (tools_dir / "admin" / "entry.py").write_text(
+        "import click\n\n@click.group()\ndef cli():\n    pass\n",
+        encoding="utf-8",
+    )
+    (tools_dir / "admin" / "meta.yaml").write_text(
+        "shortHelp: Admin tools\nhidden: false\nenabled: true\nno_args_is_help: false\n",
+        encoding="utf-8",
+    )
+
+    (tools_dir / "admin" / "show" / "entry.py").write_text(
+        "import click\n\n@click.command()\ndef cli():\n    click.echo('ok')\n",
+        encoding="utf-8",
+    )
+    (tools_dir / "admin" / "show" / "meta.yaml").write_text(
+        "shortHelp: Show details\nhidden: false\nenabled: true\nno_args_is_help: false\n",
+        encoding="utf-8",
+    )
+
+    runner = CliRunner()
+
+    root = RootCommand(commands_dir)
+    top_level = runner.invoke(root, ["tools"])
+    assert top_level.exit_code != 0
+    assert "Commands:" in top_level.output
+    assert "admin" in top_level.output
+
+    sub_level = runner.invoke(root, ["tools", "admin"])
+    assert sub_level.exit_code != 0
+    assert "Missing command" in sub_level.output
+    assert "Try 'your_cli tools admin --help' for help." in sub_level.output
+
+    (tools_dir / "admin" / "meta.yaml").write_text(
+        "shortHelp: Admin tools\nhidden: false\nenabled: true\nno_args_is_help: true\n",
+        encoding="utf-8",
+    )
+
+    refreshed_root = RootCommand(commands_dir)
+    refreshed_sub_level = runner.invoke(refreshed_root, ["tools", "admin"])
+    assert refreshed_sub_level.exit_code != 0
+    assert "Commands:" in refreshed_sub_level.output
+    assert "show" in refreshed_sub_level.output.lower()
+    assert "Try 'your_cli tools admin --help' for help." not in refreshed_sub_level.output
+
+
 def test_group_help_lists_subcommands_with_short_help() -> None:
     commands_dir = Path(__file__).parent.parent / "src" / "your_cli" / "commands"
     root = RootCommand(commands_dir)
@@ -180,15 +239,153 @@ def test_scaffolder_creates_plugin(tmp_path: Path, monkeypatch) -> None:
             "admin",
             "new-command",
             "compute",
-            "mul",
-            "--command-short-help",
-            "Compute related utilities.",
-            "--subcommand-short-help",
+            "--parent",
+            "math.ops",
+            "--short-help",
             "Multiply two integers.",
         ],
     )
 
     assert result.exit_code == 0
-    assert (commands_dir / "compute" / "meta.yaml").exists()
-    assert (commands_dir / "compute" / "mul" / "entry.py").exists()
-    assert (commands_dir / "compute" / "mul" / "meta.yaml").exists()
+    assert (commands_dir / "math" / "meta.yaml").exists()
+    assert (commands_dir / "math" / "entry.py").exists()
+    assert (commands_dir / "math" / "ops" / "meta.yaml").exists()
+    assert (commands_dir / "math" / "ops" / "entry.py").exists()
+    assert (commands_dir / "math" / "ops" / "compute" / "entry.py").exists()
+    assert (commands_dir / "math" / "ops" / "compute" / "meta.yaml").exists()
+
+    template_dir = commands_dir / "admin" / "new_command" / ".template"
+    expected_entry = (template_dir / "entry.py").read_text(encoding="utf-8").replace(
+        "{{COMMAND_NAME}}",
+        "compute",
+    )
+    expected_meta = (template_dir / "meta.yaml").read_text(encoding="utf-8").replace(
+        "{{SHORT_HELP}}",
+        "Multiply two integers.",
+    ).replace(
+        "{{COMMAND_NAME}}",
+        "compute",
+    )
+    generated_entry = (commands_dir / "math" / "ops" / "compute" / "entry.py").read_text(encoding="utf-8")
+    generated_meta = (commands_dir / "math" / "ops" / "compute" / "meta.yaml").read_text(encoding="utf-8")
+
+    assert generated_entry == expected_entry
+    assert generated_meta == expected_meta
+
+
+def test_scaffolder_upgrades_parent_command_to_group_when_child_is_added(tmp_path: Path, monkeypatch) -> None:
+    commands_dir = tmp_path / "commands"
+    monkeypatch.setenv("YOUR_CLI_COMMANDS_DIR", str(commands_dir))
+
+    # Copy admin command structure to test directory
+    real_commands = Path(__file__).parent.parent / "src" / "your_cli" / "commands"
+    admin_src = real_commands / "admin"
+    admin_dst = commands_dir / "admin"
+    shutil.copytree(admin_src, admin_dst)
+
+    root = RootCommand(commands_dir)
+    runner = CliRunner()
+
+    create_parent = runner.invoke(
+        root,
+        [
+            "admin",
+            "new-command",
+            "cicd",
+            "--short-help",
+            "CI/CD related commands.",
+        ],
+    )
+    assert create_parent.exit_code == 0
+
+    parent_entry = commands_dir / "cicd" / "entry.py"
+    assert "@click.command()" in parent_entry.read_text(encoding="utf-8")
+
+    create_child = runner.invoke(
+        root,
+        [
+            "admin",
+            "new-command",
+            "create-stack",
+            "--parent",
+            "cicd",
+            "--short-help",
+            "Create a new stack",
+        ],
+    )
+    assert create_child.exit_code == 0
+
+    parent_entry_text = parent_entry.read_text(encoding="utf-8")
+    assert "@click.group()" in parent_entry_text
+
+    refreshed_root = RootCommand(commands_dir)
+    run_child = runner.invoke(refreshed_root, ["cicd", "create-stack"])
+    assert run_child.exit_code == 0
+    assert "Usage:" in run_child.output
+    assert "Create a new stack" in run_child.output
+
+
+def test_scaffolder_upgrades_intermediate_parent_for_dot_parent_chain(tmp_path: Path, monkeypatch) -> None:
+    commands_dir = tmp_path / "commands"
+    monkeypatch.setenv("YOUR_CLI_COMMANDS_DIR", str(commands_dir))
+
+    # Copy admin command structure to test directory
+    real_commands = Path(__file__).parent.parent / "src" / "your_cli" / "commands"
+    admin_src = real_commands / "admin"
+    admin_dst = commands_dir / "admin"
+    shutil.copytree(admin_src, admin_dst)
+
+    root = RootCommand(commands_dir)
+    runner = CliRunner()
+
+    first = runner.invoke(
+        root,
+        [
+            "admin",
+            "new-command",
+            "cicd",
+            "--short-help",
+            "CI/CD related commands.",
+        ],
+    )
+    assert first.exit_code == 0
+
+    second = runner.invoke(
+        root,
+        [
+            "admin",
+            "new-command",
+            "stack",
+            "--parent",
+            "cicd",
+            "--short-help",
+            "Stack operations.",
+        ],
+    )
+    assert second.exit_code == 0
+
+    stack_entry = commands_dir / "cicd" / "stack" / "entry.py"
+    assert "@click.command()" in stack_entry.read_text(encoding="utf-8")
+
+    third = runner.invoke(
+        root,
+        [
+            "admin",
+            "new-command",
+            "create",
+            "--parent",
+            "cicd.stack",
+            "--short-help",
+            "Create a new stack.",
+        ],
+    )
+    assert third.exit_code == 0
+
+    stack_entry_text = stack_entry.read_text(encoding="utf-8")
+    assert "@click.group()" in stack_entry_text
+
+    refreshed_root = RootCommand(commands_dir)
+    run_nested = runner.invoke(refreshed_root, ["cicd", "stack", "create"])
+    assert run_nested.exit_code == 0
+    assert "Usage:" in run_nested.output
+    assert "Create a new stack." in run_nested.output

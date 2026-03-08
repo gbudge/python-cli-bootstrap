@@ -12,6 +12,9 @@ import yaml
 from your_cli import __version__
 
 
+IGNORED_COMMAND_DIR_PREFIXES = (".", "__")
+
+
 @dataclass(frozen=True)
 class CommandSpec:
     name: str
@@ -23,6 +26,7 @@ class CommandSpec:
     help_group: str
     is_group: bool  # True if this is a group with subcommands
     subcommands: dict[str, CommandSpec] | None = None  # Nested subcommands if is_group=True
+    no_args_is_help: bool = False
 
 
 @dataclass(frozen=True)
@@ -34,10 +38,15 @@ class CommandGroupSpec:
     hidden: bool
     enabled: bool
     help_group: str
+    no_args_is_help: bool = False
 
 
 def _safe_name(name: str) -> str:
     return name.replace("_", "-")
+
+
+def _should_ignore_command_dir(path: Path) -> bool:
+    return path.name.startswith(IGNORED_COMMAND_DIR_PREFIXES)
 
 
 def load_meta(path: Path) -> dict:
@@ -48,18 +57,19 @@ def load_meta(path: Path) -> dict:
     if not isinstance(data, dict):
         raise RuntimeError(f"Invalid meta.yaml at {path}: expected mapping")
 
-    # Support both HelpSummary (new) and shortHelp (legacy) for backwards compatibility
-    help_summary = data.get("HelpSummary") or data.get("shortHelp")
+    # Support short_help and legacy aliases for backwards compatibility.
+    help_summary = data.get("short_help") or data.get("HelpSummary") or data.get("shortHelp")
     if not isinstance(help_summary, str) or not help_summary.strip():
-        raise RuntimeError(f"Invalid meta.yaml at {path}: HelpSummary must be a non-empty string")
+        raise RuntimeError(f"Invalid meta.yaml at {path}: short_help must be a non-empty string")
 
-    # Normalize to HelpSummary
-    data["HelpSummary"] = help_summary
+    # Normalize to short_help
+    data["short_help"] = help_summary
 
-    # Extract hidden, enabled, and HelpGroup with defaults
+    # Extract hidden, enabled, and help_group with defaults.
     data.setdefault("hidden", False)
     data.setdefault("enabled", True)
-    data.setdefault("HelpGroup", "Commands")
+    data["help_group"] = data.get("help_group") or data.get("HelpGroup") or "Commands"
+    data.setdefault("no_args_is_help", False)
 
     # If disabled, override hidden to True
     if not data["enabled"]:
@@ -85,20 +95,21 @@ def load_group_meta(path: Path) -> dict | None:
     if not isinstance(data, dict):
         raise RuntimeError(f"Invalid meta.yaml at {path}: expected mapping")
 
-    # Support both HelpSummary (new) and shortHelp (legacy) for backwards compatibility
-    help_summary = data.get("HelpSummary") or data.get("shortHelp")
+    # Support short_help and legacy aliases for backwards compatibility.
+    help_summary = data.get("short_help") or data.get("HelpSummary") or data.get("shortHelp")
     if help_summary is None:
         return None
     if not isinstance(help_summary, str) or not help_summary.strip():
-        raise RuntimeError(f"Invalid meta.yaml at {path}: HelpSummary must be a non-empty string")
+        raise RuntimeError(f"Invalid meta.yaml at {path}: short_help must be a non-empty string")
 
-    # Normalize to HelpSummary
-    data["HelpSummary"] = help_summary
+    # Normalize to short_help
+    data["short_help"] = help_summary
 
-    # Extract hidden, enabled, and HelpGroup with defaults
+    # Extract hidden, enabled, and help_group with defaults.
     data.setdefault("hidden", False)
     data.setdefault("enabled", True)
-    data.setdefault("HelpGroup", "Commands")
+    data["help_group"] = data.get("help_group") or data.get("HelpGroup") or "Commands"
+    data.setdefault("no_args_is_help", False)
 
     # If disabled, override hidden to True
     if not data["enabled"]:
@@ -132,8 +143,8 @@ def _discover_nested_commands(
     specs: dict[str, CommandSpec] = {}
 
     for sub_dir in sorted(p for p in base_dir.iterdir() if p.is_dir()):
-        # Ignore interpreter / tooling artefacts.
-        if sub_dir.name.startswith(".") or sub_dir.name.startswith("__"):
+        # Ignore interpreter / tooling artefacts and support directories.
+        if _should_ignore_command_dir(sub_dir):
             continue
 
         cmd_name = _safe_name(sub_dir.name)
@@ -179,7 +190,8 @@ def _discover_nested_commands(
             import_path=nested_import_path,
             hidden=meta["hidden"],
             enabled=meta["enabled"],
-            help_group=meta["HelpGroup"],
+            help_group=meta["help_group"],
+            no_args_is_help=meta["no_args_is_help"],
             is_group=is_group,
             subcommands=nested_specs if is_group else None,
         )
@@ -195,8 +207,8 @@ def discover_specs(commands_dir: Path, max_depth: int = 5) -> dict[str, CommandG
         return specs
 
     for command_dir in sorted(p for p in commands_dir.iterdir() if p.is_dir()):
-        # Ignore interpreter / tooling artefacts.
-        if command_dir.name.startswith(".") or command_dir.name.startswith("__"):
+        # Ignore interpreter / tooling artefacts and support directories.
+        if _should_ignore_command_dir(command_dir):
             continue
 
         command_name = _safe_name(command_dir.name)
@@ -206,16 +218,18 @@ def discover_specs(commands_dir: Path, max_depth: int = 5) -> dict[str, CommandG
         group_hidden = False
         group_enabled = True
         group_help_group = "Commands"
+        group_no_args_is_help = False
         try:
             group_meta = load_group_meta(command_dir / "meta.yaml")
         except RuntimeError as exc:
             errors.append(str(exc))
             group_meta = None
         if group_meta is not None:
-            group_help_summary = group_meta["HelpSummary"].strip()
+            group_help_summary = group_meta["short_help"].strip()
             group_hidden = group_meta["hidden"]
             group_enabled = group_meta["enabled"]
-            group_help_group = group_meta["HelpGroup"]
+            group_help_group = group_meta["help_group"]
+            group_no_args_is_help = group_meta["no_args_is_help"]
 
         group_entry_path = command_dir / "entry.py"
         if not group_entry_path.is_file():
@@ -242,6 +256,7 @@ def discover_specs(commands_dir: Path, max_depth: int = 5) -> dict[str, CommandG
                 hidden=group_hidden,
                 enabled=group_enabled,
                 help_group=group_help_group,
+                no_args_is_help=group_no_args_is_help,
             )
 
     if errors:
@@ -298,9 +313,10 @@ def load_click_command(spec: CommandSpec) -> click.Command:
     elif not isinstance(cli, click.core.Command):
         raise RuntimeError(f"{spec.entry_path} must export 'cli' as a click.Command (found {type(cli).__name__})")
 
-    cli.short_help = meta["HelpSummary"]
-    cli.help = meta["HelpSummary"]
+    cli.short_help = meta["short_help"]
+    cli.help = meta["short_help"]
     cli.hidden = spec.hidden
+    cli.no_args_is_help = spec.no_args_is_help
     cli.name = spec.name
     return cli
 
@@ -363,7 +379,7 @@ class LazySubGroup(click.Group):
         return load_click_command(spec)
 
     def format_commands(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
-        """Format help with commands grouped by their HelpGroup."""
+        """Format help with commands grouped by their help_group."""
 
         def _rows(items: list[tuple[str, click.Command]]) -> list[tuple[str, str]]:
             if not items:
@@ -371,7 +387,7 @@ class LazySubGroup(click.Group):
             limit = formatter.width - 6 - max(len(name) for name, _ in items)
             return [(name, cmd.get_short_help_str(limit)) for name, cmd in items]
 
-        # Group commands by their HelpGroup
+        # Group commands by their help_group.
         groups: dict[str, list[tuple[str, click.Command]]] = {}
         for cmd_name in sorted(self._specs):
             cmd = self.get_command(ctx, cmd_name)
@@ -419,7 +435,7 @@ class LazyPluginGroup(click.Group):
         return load_click_command(spec)
 
     def format_commands(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
-        """Format help with commands grouped by their HelpGroup."""
+        """Format help with commands grouped by their help_group."""
 
         def _rows(items: list[tuple[str, click.Command]]) -> list[tuple[str, str]]:
             if not items:
@@ -427,7 +443,7 @@ class LazyPluginGroup(click.Group):
             limit = formatter.width - 6 - max(len(name) for name, _ in items)
             return [(name, cmd.get_short_help_str(limit)) for name, cmd in items]
 
-        # Group commands by their HelpGroup
+        # Group commands by their help_group.
         groups: dict[str, list[tuple[str, click.Command]]] = {}
         for cmd_name in sorted(self._specs):
             cmd = self.get_command(ctx, cmd_name)
@@ -475,7 +491,7 @@ class LazyNestedGroup(click.Group):
         return load_click_command(spec)
 
     def format_commands(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
-        """Format help with commands grouped by their HelpGroup."""
+        """Format help with commands grouped by their help_group."""
 
         def _rows(items: list[tuple[str, click.Command]]) -> list[tuple[str, str]]:
             if not items:
@@ -483,7 +499,7 @@ class LazyNestedGroup(click.Group):
             limit = formatter.width - 6 - max(len(name) for name, _ in items)
             return [(name, cmd.get_short_help_str(limit)) for name, cmd in items]
 
-        # Group commands by their HelpGroup
+        # Group commands by their help_group.
         groups: dict[str, list[tuple[str, click.Command]]] = {}
         for cmd_name in sorted(self._specs):
             cmd = self.get_command(ctx, cmd_name)
@@ -574,11 +590,12 @@ class RootCommand(click.Group):
 
         # Apply hidden flag
         group.hidden = group_spec.hidden
+        group.no_args_is_help = group_spec.no_args_is_help
 
         return group
 
     def format_commands(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
-        """Format root help with commands grouped by their HelpGroup."""
+        """Format root help with commands grouped by their help_group."""
 
         def _rows(items: list[tuple[str, click.Command]]) -> list[tuple[str, str]]:
             if not items:
@@ -586,7 +603,7 @@ class RootCommand(click.Group):
             limit = formatter.width - 6 - max(len(name) for name, _ in items)
             return [(name, cmd.get_short_help_str(limit)) for name, cmd in items]
 
-        # Group commands by their HelpGroup
+        # Group commands by their help_group.
         groups: dict[str, list[tuple[str, click.Command]]] = {}
         for cmd_name in sorted(self._specs):
             cmd = self.get_command(ctx, cmd_name)

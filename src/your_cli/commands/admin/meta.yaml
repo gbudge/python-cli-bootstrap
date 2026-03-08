@@ -1,5 +1,6 @@
-HelpGroup: Advanced
-HelpSummary: Administrative commands for YourCLI
-hidden: true
+help_group: Advanced
+short_help: Administrative commands for YourCLI
+hidden: false
 enabled: true
 packaged: false
+no_args_is_help: true

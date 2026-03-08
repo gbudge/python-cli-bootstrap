@@ -1,5 +1,6 @@
-# HelpGroup: Commands
-HelpSummary: Create a new command plugin skeleton.
+# help_group: Commands
+short_help: Create a new command plugin skeleton.
 hidden: false
 enabled: true
 packaged: false
+no_args_is_help: true

@@ -1,5 +1,5 @@
-HelpGroup: Network
-HelpSummary: Ping a host
+help_group: Network
+short_help: Ping a host
 hidden: false
 enabled: true
 packaged: false

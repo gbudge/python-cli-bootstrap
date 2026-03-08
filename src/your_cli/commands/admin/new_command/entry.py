@@ -11,86 +11,76 @@ import click
 VALID_NAME = re.compile(r"^[A-Za-z0-9_-]+$")
 
 CLI_NAME = "yourcli"
+META_TEMPLATE_TOKEN = "{{SHORT_HELP}}"
+COMMAND_TEMPLATE_TOKEN = "{{COMMAND_NAME}}"
 
 
 @click.command()
 @click.argument("command")
-@click.argument("subcommand", required=False)
 @click.option(
-    "--command-short-help",
+    "--parent",
     default=None,
-    help=f"Short help for the command group (shown under `{CLI_NAME} --help`).",
+    help=(
+        "Optional parent command path in dot notation "
+        f"(for example: github.repo, creating `{CLI_NAME} github repo <command>`)."
+    ),
 )
-@click.option(
-    "--subcommand-short-help",
-    default=None,
-    help=f"Short help for the subcommand (shown under `{CLI_NAME} <command> --help`). Not required when no subcommand is created.",
-)
-@click.option("--short-help", default=None, hidden=True)
+@click.option("--short-help", required=True, help="Short help text for the new command.")
 @click.option("--force", is_flag=True, help="Overwrite existing files.")
-def cli(  # noqa: PLR0915
+def cli(
     command: str,
-    subcommand: str | None,
+    parent: str | None,
+    short_help: str,
     force: bool,
-    **kwargs: str | None,
 ) -> None:
     """Create a new command plugin skeleton."""
-
-    # Extract help options from kwargs
-    command_short_help = kwargs.get("command_short_help")
-    subcommand_short_help = kwargs.get("subcommand_short_help")
-    short_help = kwargs.get("short_help")
-
-    # Backwards compatible: old --short-help applied to subcommand.
-    if short_help and not subcommand_short_help:
-        subcommand_short_help = short_help
-
-    # Validate command name
-    if not VALID_NAME.match(command):
-        _abort(f"Invalid command '{command}'. Use only letters, numbers, underscore, and hyphen.")
-
+    _validate_token("command", command)
+    parent_parts = _parse_parent(parent)
+    command_path = parent_parts + [command]
     commands_dir = _commands_dir()
-    command_dir = commands_dir / command
+    target_dir = commands_dir.joinpath(*command_path)
+    _assert_within_commands_dir(commands_dir, target_dir)
 
-    # If no subcommand, create a standalone command
-    if subcommand is None:
-        # Validate we have the necessary help text
-        if command_short_help is None:
-            _abort("--command-short-help is required when creating a standalone command (no subcommand).")
+    entry_path = target_dir / "entry.py"
+    meta_path = target_dir / "meta.yaml"
+    if not force and (entry_path.exists() or meta_path.exists()):
+        _abort("Command already exists. Use --force to overwrite existing entry.py/meta.yaml.")
 
-        try:
-            resolved_command_dir = command_dir.resolve()
-            resolved_root = commands_dir.resolve()
-            resolved_command_dir.relative_to(resolved_root)
-        except Exception:  # noqa: BLE001
-            _abort("Target path must be within commands directory.")
+    written_paths = _ensure_parent_groups(commands_dir, parent_parts)
 
-        entry_path = command_dir / "entry.py"
-        meta_path = command_dir / "meta.yaml"
+    target_dir.mkdir(parents=True, exist_ok=True)
+    meta_path.write_text(_new_command_meta_content(short_help, command), encoding="utf-8")
+    entry_path.write_text(_new_command_entry_content(command), encoding="utf-8")
+    written_paths.extend([meta_path, entry_path])
 
-        if not force and (entry_path.exists() or meta_path.exists()):
-            _abort("Command already exists. Use --force to overwrite existing entry.py/meta.yaml.")
+    for path in written_paths:
+        click.echo(str(path))
 
-        command_dir.mkdir(parents=True, exist_ok=True)
 
-        help_text = command_short_help
-        meta_content = f"HelpSummary: {help_text}\nhidden: false\nenabled: true\nHelpGroup: Commands\npackaged: true\n"
-        entry_content = (
-            'import click\n\n@click.command()\ndef cli():\n    click.echo("not implemented")\n    raise SystemExit(2)\n'
+def _parse_parent(parent: str | None) -> list[str]:
+    if parent is None:
+        return []
+    parent_value = parent.strip()
+    if not parent_value:
+        _abort("Invalid --parent ''. Use dot notation tokens with letters, numbers, underscore, and hyphen.")
+
+    tokens = parent_value.split(".")
+    if any(token == "" for token in tokens):
+        _abort(
+            f"Invalid --parent '{parent}'. Use dot notation tokens with letters, numbers, underscore, and hyphen."
         )
 
-        meta_path.write_text(meta_content, encoding="utf-8")
-        entry_path.write_text(entry_content, encoding="utf-8")
+    for token in tokens:
+        _validate_token("parent segment", token)
+    return tokens
 
-        click.echo(str(meta_path))
-        click.echo(str(entry_path))
-        return
 
-    # Validate subcommand name
-    if not VALID_NAME.match(subcommand):
-        _abort(f"Invalid subcommand '{subcommand}'. Use only letters, numbers, underscore, and hyphen.")
+def _validate_token(token_name: str, token: str) -> None:
+    if not VALID_NAME.match(token):
+        _abort(f"Invalid {token_name} '{token}'. Use only letters, numbers, underscore, and hyphen.")
 
-    target_dir = command_dir / subcommand
+
+def _assert_within_commands_dir(commands_dir: Path, target_dir: Path) -> None:
     try:
         resolved_target = target_dir.resolve()
         resolved_root = commands_dir.resolve()
@@ -98,34 +88,84 @@ def cli(  # noqa: PLR0915
     except Exception:  # noqa: BLE001
         _abort("Target path must be within commands directory.")
 
-    entry_path = target_dir / "entry.py"
-    meta_path = target_dir / "meta.yaml"
-    group_meta_path = command_dir / "meta.yaml"
 
-    if not force and (entry_path.exists() or meta_path.exists() or group_meta_path.exists()):
-        _abort("Plugin already exists. Use --force to overwrite existing entry.py/meta.yaml and command meta.yaml.")
+def _ensure_parent_groups(commands_dir: Path, parent_parts: list[str]) -> list[Path]:
+    written_paths: list[Path] = []
+    for index in range(len(parent_parts)):
+        group_parts = parent_parts[: index + 1]
+        group_dir = commands_dir.joinpath(*group_parts)
+        _assert_within_commands_dir(commands_dir, group_dir)
+        group_dir.mkdir(parents=True, exist_ok=True)
 
-    target_dir.mkdir(parents=True, exist_ok=True)
+        group_meta_path = group_dir / "meta.yaml"
+        if not group_meta_path.exists():
+            help_text = f"TODO: describe {' '.join(group_parts)}."
+            group_meta_path.write_text(_meta_content(help_text), encoding="utf-8")
+            written_paths.append(group_meta_path)
 
-    group_help_text = command_short_help or f"TODO: describe {command}."
-    sub_help_text = subcommand_short_help or f"TODO: describe {command} {subcommand}."
+        group_entry_path = group_dir / "entry.py"
+        if not group_entry_path.exists():
+            group_entry_path.write_text(_group_entry_content(), encoding="utf-8")
+            written_paths.append(group_entry_path)
+        elif _upgrade_scaffold_command_to_group(group_entry_path):
+            written_paths.append(group_entry_path)
+    return written_paths
 
-    group_meta_content = (
-        f"HelpSummary: {group_help_text}\nhidden: false\nenabled: true\nHelpGroup: Commands\npackaged: true\n"
+
+def _meta_content(help_text: str) -> str:
+    return (
+        f"short_help: {help_text}\n"
+        "hidden: false\n"
+        "enabled: true\n"
+        "help_group: Commands\n"
+        "packaged: true\n"
+        "no_args_is_help: false\n"
     )
-    meta_content = f"HelpSummary: {sub_help_text}\nhidden: false\nenabled: true\nHelpGroup: Commands\npackaged: true\n"
-    entry_content = (
-        'import click\n\n@click.command()\ndef cli():\n    click.echo("not implemented")\n    raise SystemExit(2)\n'
-    )
 
-    group_meta_path.parent.mkdir(parents=True, exist_ok=True)
-    group_meta_path.write_text(group_meta_content, encoding="utf-8")
-    meta_path.write_text(meta_content, encoding="utf-8")
-    entry_path.write_text(entry_content, encoding="utf-8")
 
-    click.echo(str(group_meta_path))
-    click.echo(str(meta_path))
-    click.echo(str(entry_path))
+def _new_command_meta_content(short_help: str, command_name: str) -> str:
+    content = _load_template_file("meta.yaml")
+    if META_TEMPLATE_TOKEN not in content:
+        _abort(
+            "Template meta.yaml must include '{{SHORT_HELP}}' placeholder for --short-help."
+        )
+    return _replace_command_template_tokens(content.replace(META_TEMPLATE_TOKEN, short_help), command_name)
+
+
+def _new_command_entry_content(command_name: str) -> str:
+    return _replace_command_template_tokens(_load_template_file("entry.py"), command_name)
+
+
+def _replace_command_template_tokens(content: str, command_name: str) -> str:
+    return content.replace(COMMAND_TEMPLATE_TOKEN, command_name)
+
+
+def _load_template_file(filename: str) -> str:
+    template_path = _template_dir() / filename
+    if not template_path.is_file():
+        _abort(f"Missing required template file: {template_path}")
+    return template_path.read_text(encoding="utf-8")
+
+
+def _template_dir() -> Path:
+    return Path(__file__).resolve().parent / ".template"
+
+
+def _legacy_command_entry_content() -> str:
+    return 'import click\n\n@click.command()\ndef cli():\n    click.echo("not implemented")\n    raise SystemExit(2)\n'
+
+
+def _group_entry_content() -> str:
+    return 'import click\n\n@click.group()\ndef cli():\n    """Group command."""\n'
+
+
+def _upgrade_scaffold_command_to_group(entry_path: Path) -> bool:
+    current_text = entry_path.read_text(encoding="utf-8")
+    scaffold_content = _new_command_entry_content(entry_path.parent.name)
+    if current_text not in {scaffold_content, _legacy_command_entry_content()}:
+        return False
+    entry_path.write_text(_group_entry_content(), encoding="utf-8")
+    return True
 
 
 def _commands_dir() -> Path:

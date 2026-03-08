@@ -1,0 +1,16 @@
+#
+# Meta configuration for {{COMMAND_NAME}} command.
+#
+# help_group:  The grouping the command will be listed under in help output. Defaults to "Commands".
+# short_help:  The short description that will be shown in help output.
+# enabled:     If false, the command will not be registered and cannot be used. Defaults to true.
+# hidden:      If true, the command will not be shown in help output. Defaults to false.
+# packaged:    If true, the command will be included in the PyPi package. Defaults to true.
+# no_args_is_help: If true, show help when invoked without required subcommands/options. Defaults to false.
+#
+short_help: {{SHORT_HELP}}
+hidden: false
+enabled: true
+help_group: Commands
+packaged: true
+no_args_is_help: false
