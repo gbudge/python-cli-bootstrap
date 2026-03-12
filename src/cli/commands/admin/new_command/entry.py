@@ -8,9 +8,11 @@ from pathlib import Path
 
 import click
 
+from cli.utils.metadata import Metadata
+
 VALID_NAME = re.compile(r"^[A-Za-z0-9_-]+$")
 
-CLI_NAME = "yourcli"
+CLI_NAME = Metadata.APP_NAME
 META_TEMPLATE_TOKEN = "{{SHORT_HELP}}"
 COMMAND_TEMPLATE_TOKEN = "{{COMMAND_NAME}}"
 
@@ -169,7 +171,7 @@ def _upgrade_scaffold_command_to_group(entry_path: Path) -> bool:
 
 
 def _commands_dir() -> Path:
-    override = os.environ.get("YOUR_CLI_COMMANDS_DIR")
+    override = os.environ.get(Metadata.env_var("COMMANDS_DIR"))
     if override:
         return Path(override)
     # __file__ is: .../commands/admin/new_command/entry.py

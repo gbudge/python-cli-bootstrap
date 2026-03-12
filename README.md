@@ -1,11 +1,11 @@
-# your-cli
+# Foxy
 
 A small reference project that demonstrates a Click-based Python CLI with a simple *plugin-style* command discovery mechanism and modern tooling.
 
 ## Features
 
 - **CLI framework**: [Click](https://click.palletsprojects.com/)
-- **Dynamic command loading**: commands are discovered from the `src/your_cli/commands/` tree and loaded lazily at runtime
+- **Dynamic command loading**: commands are discovered from the `src/cli/commands/` tree and loaded lazily at runtime
 - **Package management**: [uv](https://docs.astral.sh/uv/) for fast dependency management
 - **Code quality**: Ruff (lint + format) and Pyright (type checking)
 - **Testing**: pytest (with coverage support)
@@ -20,7 +20,7 @@ Install [uv](https://docs.astral.sh/uv/).
 
 ### Setup
 
-Create / sync the project environment (this installs the project in editable mode, including the `your-cli` console script):
+Create / sync the project environment (this installs the project in editable mode, including the `Foxy` console script):
 
 ```bash
 make setup
@@ -29,15 +29,15 @@ make setup
 ### Run the CLI
 
 ```bash
-uv run your-cli --help
-uv run your-cli compute add 1 2
-uv run your-cli net ping 1.1.1.1 --count 1
+uv run Foxy --help
+uv run Foxy compute add 1 2
+uv run Foxy net ping 1.1.1.1 --count 1
 ```
 
 Notes:
 - If you skip `make setup`, you can run `uv sync --locked --all-extras --dev` directly.
 - To install explicitly (editable) and see post-install hints, run `make install`.
-- The Python-module equivalent of `your-cli --help` is: `uv run python -m your_cli.main --help`.
+- The Python-module equivalent of `Foxy --help` is: `uv run python -m cli.main --help`.
 
 ## Commands
 
@@ -52,7 +52,7 @@ This repository includes example commands:
 Commands are discovered from:
 
 ```
-src/your_cli/commands/<...nested command path...>/
+src/cli/commands/<...nested command path...>/
 ```
 
 Each plugin directory must contain:
@@ -78,9 +78,9 @@ Dot-prefixed and `__`-prefixed directories are ignored during command discovery.
 ### Developer utility: create a new command skeleton
 
 ```bash
-uv run your-cli admin new-command mul --short-help "Multiply two integers."
-uv run your-cli admin new-command mul --parent compute --short-help "Multiply two integers."
-uv run your-cli admin new-command issue --parent github.repo --short-help "Manage repository issues."
+uv run Foxy admin new-command mul --short-help "Multiply two integers."
+uv run Foxy admin new-command mul --parent compute --short-help "Multiply two integers."
+uv run Foxy admin new-command issue --parent github.repo --short-help "Manage repository issues."
 ```
 
 `--parent` uses dot-notation to create nested command paths (`github.repo` => `github/repo`).
@@ -88,7 +88,27 @@ Any missing parent groups are scaffolded automatically.
 
 If you want to generate plugins into a different directory during development, set:
 
-- `YOUR_CLI_COMMANDS_DIR` (used by the `admin new-command` helper)
+- `<ENV_PREFIX>COMMANDS_DIR` (used by the `admin new-command` helper)
+- `<ENV_PREFIX>REBRAND_PROJECT_ROOT` (used by the `admin rebrand` helper)
+
+The environment variable prefix is configurable in [`pyproject.toml`](pyproject.toml):
+
+```toml
+[tool.mycli]
+env_prefix = "FOXY_"
+name = "mycli"
+cli_name = "mycli"
+```
+
+With the default prefix this resolves to `FOXY_COMMANDS_DIR`.
+
+- `name`: branded display name used in CLI metadata output (for example, banner/version text)
+- `cli_name`: command name used as the CLI program name
+
+With the default prefix, supported override variables are:
+
+- `FOXY_COMMANDS_DIR`
+- `FOXY_REBRAND_PROJECT_ROOT`
 
 ## Development tasks
 
@@ -119,9 +139,9 @@ ENV=prod make lint
 ```
 .
 ├── src/
-│   └── your_cli/
+│   └── cli/
 │       ├── commands/           # Dynamic command plugins
-│       ├── dev.py              # Developer utilities ("your-cli dev …")
+│       ├── dev.py              # Developer utilities ("Foxy dev …")
 │       ├── loader.py           # Command discovery + lazy loader
 │       └── main.py             # Console entry point
 ├── tests/

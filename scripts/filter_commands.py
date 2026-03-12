@@ -148,10 +148,10 @@ def main() -> int:
 
     action = sys.argv[1]
 
-    # Find the src/your_cli/commands directory
+    # Find the src/cli/commands directory
     script_dir = Path(__file__).resolve().parent
     project_root = script_dir.parent
-    commands_dir = project_root / "src" / "your_cli" / "commands"
+    commands_dir = project_root / "src" / "cli" / "commands"
     backup_dir = project_root / ".build_excluded"
 
     if action == "prepare":

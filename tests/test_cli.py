@@ -3,7 +3,8 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from your_cli.loader import RootCommand, discover_specs
+from cli.loader import RootCommand, discover_specs
+from cli.utils.metadata import Metadata
 
 
 def _write_plugin(
@@ -193,7 +194,7 @@ def test_no_args_is_help_is_configurable_per_group_level(tmp_path: Path) -> None
     sub_level = runner.invoke(root, ["tools", "admin"])
     assert sub_level.exit_code != 0
     assert "Missing command" in sub_level.output
-    assert "Try 'your_cli tools admin --help' for help." in sub_level.output
+    assert "Try 'cli tools admin --help' for help." in sub_level.output
 
     (tools_dir / "admin" / "meta.yaml").write_text(
         "shortHelp: Admin tools\nhidden: false\nenabled: true\nno_args_is_help: true\n",
@@ -205,11 +206,11 @@ def test_no_args_is_help_is_configurable_per_group_level(tmp_path: Path) -> None
     assert refreshed_sub_level.exit_code != 0
     assert "Commands:" in refreshed_sub_level.output
     assert "show" in refreshed_sub_level.output.lower()
-    assert "Try 'your_cli tools admin --help' for help." not in refreshed_sub_level.output
+    assert "Try 'cli tools admin --help' for help." not in refreshed_sub_level.output
 
 
 def test_group_help_lists_subcommands_with_short_help() -> None:
-    commands_dir = Path(__file__).parent.parent / "src" / "your_cli" / "commands"
+    commands_dir = Path(__file__).parent.parent / "src" / "cli" / "commands"
     root = RootCommand(commands_dir)
     runner = CliRunner()
 
@@ -217,15 +218,16 @@ def test_group_help_lists_subcommands_with_short_help() -> None:
     result = runner.invoke(root, ["admin", "--help"])
     assert result.exit_code == 0
     assert "new-command" in result.output
+    assert "rebrand" in result.output
     assert "Create a new command plugin skeleton." in result.output
 
 
 def test_scaffolder_creates_plugin(tmp_path: Path, monkeypatch) -> None:
     commands_dir = tmp_path / "commands"
-    monkeypatch.setenv("YOUR_CLI_COMMANDS_DIR", str(commands_dir))
+    monkeypatch.setenv(Metadata.env_var("COMMANDS_DIR"), str(commands_dir))
 
     # Copy admin command structure to test directory
-    real_commands = Path(__file__).parent.parent / "src" / "your_cli" / "commands"
+    real_commands = Path(__file__).parent.parent / "src" / "cli" / "commands"
     admin_src = real_commands / "admin"
     admin_dst = commands_dir / "admin"
 
@@ -275,10 +277,10 @@ def test_scaffolder_creates_plugin(tmp_path: Path, monkeypatch) -> None:
 
 def test_scaffolder_upgrades_parent_command_to_group_when_child_is_added(tmp_path: Path, monkeypatch) -> None:
     commands_dir = tmp_path / "commands"
-    monkeypatch.setenv("YOUR_CLI_COMMANDS_DIR", str(commands_dir))
+    monkeypatch.setenv(Metadata.env_var("COMMANDS_DIR"), str(commands_dir))
 
     # Copy admin command structure to test directory
-    real_commands = Path(__file__).parent.parent / "src" / "your_cli" / "commands"
+    real_commands = Path(__file__).parent.parent / "src" / "cli" / "commands"
     admin_src = real_commands / "admin"
     admin_dst = commands_dir / "admin"
     shutil.copytree(admin_src, admin_dst)
@@ -327,10 +329,10 @@ def test_scaffolder_upgrades_parent_command_to_group_when_child_is_added(tmp_pat
 
 def test_scaffolder_upgrades_intermediate_parent_for_dot_parent_chain(tmp_path: Path, monkeypatch) -> None:
     commands_dir = tmp_path / "commands"
-    monkeypatch.setenv("YOUR_CLI_COMMANDS_DIR", str(commands_dir))
+    monkeypatch.setenv(Metadata.env_var("COMMANDS_DIR"), str(commands_dir))
 
     # Copy admin command structure to test directory
-    real_commands = Path(__file__).parent.parent / "src" / "your_cli" / "commands"
+    real_commands = Path(__file__).parent.parent / "src" / "cli" / "commands"
     admin_src = real_commands / "admin"
     admin_dst = commands_dir / "admin"
     shutil.copytree(admin_src, admin_dst)

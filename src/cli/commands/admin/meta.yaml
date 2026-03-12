@@ -1,5 +1,5 @@
 help_group: Advanced
-short_help: Administrative commands for YourCLI
+short_help: Administrative commands for Foxy
 hidden: false
 enabled: true
 packaged: false

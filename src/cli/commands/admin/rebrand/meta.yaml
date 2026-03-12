@@ -1,0 +1,5 @@
+short_help: Rebrand the CLI display name and command.
+hidden: false
+enabled: true
+packaged: false
+no_args_is_help: true

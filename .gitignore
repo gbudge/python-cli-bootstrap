@@ -43,7 +43,7 @@ junit.xml
 .env.test
 
 # Command-specific .env files (but keep .env.example files)
-src/your_cli/commands/**/.env
+src/cli/commands/**/.env
 
 # IDE
 .vscode/

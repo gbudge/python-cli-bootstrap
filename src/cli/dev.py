@@ -6,7 +6,7 @@ import re
 
 import click
 
-from your_cli.utils.metadata import Metadata
+from cli.utils.metadata import Metadata
 
 VALID_NAME = re.compile(r"^[A-Za-z0-9_-]+$")
 

@@ -9,7 +9,7 @@ from pathlib import Path
 import click
 import yaml
 
-from your_cli import __version__
+from cli import __version__
 
 
 IGNORED_COMMAND_DIR_PREFIXES = (".", "__")
@@ -292,7 +292,7 @@ def load_click_command(spec: CommandSpec) -> click.Command:
             return disabled_command
 
     meta = load_meta(spec.meta_path)
-    module_name = f"your_cli.commands.{'.'.join(spec.import_path)}.entry"
+    module_name = f"cli.commands.{'.'.join(spec.import_path)}.entry"
     module_spec = util.spec_from_file_location(module_name, spec.entry_path)
     if module_spec is None or module_spec.loader is None:
         raise RuntimeError(f"Failed to import entry.py at {spec.entry_path}")
@@ -322,7 +322,7 @@ def load_click_command(spec: CommandSpec) -> click.Command:
 
 
 def load_click_group(group_name: str, entry_path: Path, import_command: str) -> click.Group:
-    module_name = f"your_cli.commands.{import_command}.entry"
+    module_name = f"cli.commands.{import_command}.entry"
     module_spec = util.spec_from_file_location(module_name, entry_path)
     if module_spec is None or module_spec.loader is None:
         raise RuntimeError(f"Failed to import entry.py at {entry_path}")
@@ -343,7 +343,7 @@ def load_click_group(group_name: str, entry_path: Path, import_command: str) -> 
 
 def load_click_command_from_entry(cmd_name: str, entry_path: Path, import_command: str) -> click.Command:
     """Load a click.Command or click.Group from entry.py."""
-    module_name = f"your_cli.commands.{import_command}.entry"
+    module_name = f"cli.commands.{import_command}.entry"
     module_spec = util.spec_from_file_location(module_name, entry_path)
     if module_spec is None or module_spec.loader is None:
         raise RuntimeError(f"Failed to import entry.py at {entry_path}")
@@ -522,7 +522,7 @@ class LazyNestedGroup(click.Group):
 
 class RootCommand(click.Group):
     def __init__(self, commands_dir: Path, app_context: dict | None = None) -> None:
-        super().__init__(name=app_context.get("COMMAND_NAME", "your_cli") if app_context else "your_cli")
+        super().__init__(name=app_context.get("COMMAND_NAME", "cli") if app_context else "cli")
 
         self._commands_dir = commands_dir
         self._specs = discover_specs(commands_dir)

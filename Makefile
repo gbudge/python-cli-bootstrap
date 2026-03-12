@@ -115,6 +115,9 @@ help:  ## Show available make targets
 .PHONY: all
 all: clean setup format lint coverage scan  ## Run build & test pipeline
 
+.PHONY: reset
+reset:  clean setup ## Reset project (clean + remove uv environment)
+
 .PHONY: clean
 clean:  ## Remove build, cache and temp files
 	@printf "$(INFO) Cleaning project artifacts and caches...\n"

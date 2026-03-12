@@ -1,11 +1,11 @@
-"""Entry point for YourCLI."""
+"""Entry point for Foxy."""
 
 from __future__ import annotations
 
 from dotenv import load_dotenv
 
-from your_cli.loader import RootCommand
-from your_cli.utils.metadata import Metadata
+from cli.loader import RootCommand
+from cli.utils.metadata import Metadata
 
 
 def main() -> None:

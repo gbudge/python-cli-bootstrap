@@ -1,4 +1,4 @@
-"""Shared utilities for the YourCLI package."""
+"""Shared utilities for the Foxy package."""
 
 from .metadata import Metadata
 

@@ -4,10 +4,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog], and this project adheres to [Semantic Versioning].
 
+## 1.4.0 - 2026-03-12
+
+New feature: easily rebrand the CLI name and executable
+
+### Added
+- Added `[tool.yourcli]` configuration keys in `pyproject.toml` for runtime branding and environment-variable behavior:
+  - `env_prefix` (env variable prefix)
+  - `name` (display/app name)
+  - `cli_name` (CLI program name)
+
+### Changed
+- Refactored metadata loading to read branding/configuration from `pyproject.toml` so runtime values are centrally sourced.
+- Updated environment variable resolution to use the configured prefix
+- Updated README documentation to describe configurable prefixing and the new `[tool.yourcli]` keys.
+- Updated tests to use dynamically generated environment variable names via metadata helpers.
+
 ## 1.3.0 - 2026-03-08
 
 ### Added
-- New admin command templates for plugin scaffolding under `src/your_cli/commands/admin/new_command/.template/`.
+- New admin command templates for plugin scaffolding under `src/cli/commands/admin/new_command/.template/`.
 - Support for `no_args_is_help` metadata in command/group loading and command registration.
 
 ### Changed
