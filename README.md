@@ -1,4 +1,4 @@
-# Foxy
+# Python CLI Bootstrap
 
 A small reference project that demonstrates a Click-based Python CLI with a simple *plugin-style* command discovery mechanism and modern tooling.
 
@@ -20,7 +20,7 @@ Install [uv](https://docs.astral.sh/uv/).
 
 ### Setup
 
-Create / sync the project environment (this installs the project in editable mode, including the `Foxy` console script):
+Create / sync the project environment (this installs the project in editable mode, including the `mycli` console script):
 
 ```bash
 make setup
@@ -29,15 +29,15 @@ make setup
 ### Run the CLI
 
 ```bash
-uv run Foxy --help
-uv run Foxy compute add 1 2
-uv run Foxy net ping 1.1.1.1 --count 1
+uv run mycli --help
+uv run mycli compute add 1 2
+uv run mycli net ping 1.1.1.1 --count 1
 ```
 
 Notes:
 - If you skip `make setup`, you can run `uv sync --locked --all-extras --dev` directly.
 - To install explicitly (editable) and see post-install hints, run `make install`.
-- The Python-module equivalent of `Foxy --help` is: `uv run python -m cli.main --help`.
+- The Python-module equivalent of `mycli --help` is: `uv run python -m cli.main --help`.
 
 ## Commands
 
@@ -78,9 +78,9 @@ Dot-prefixed and `__`-prefixed directories are ignored during command discovery.
 ### Developer utility: create a new command skeleton
 
 ```bash
-uv run Foxy admin new-command mul --short-help "Multiply two integers."
-uv run Foxy admin new-command mul --parent compute --short-help "Multiply two integers."
-uv run Foxy admin new-command issue --parent github.repo --short-help "Manage repository issues."
+uv run mycli admin new-command mul --short-help "Multiply two integers."
+uv run mycli admin new-command mul --parent compute --short-help "Multiply two integers."
+uv run mycli admin new-command issue --parent github.repo --short-help "Manage repository issues."
 ```
 
 `--parent` uses dot-notation to create nested command paths (`github.repo` => `github/repo`).
@@ -95,20 +95,20 @@ The environment variable prefix is configurable in [`pyproject.toml`](pyproject.
 
 ```toml
 [tool.mycli]
-env_prefix = "FOXY_"
+env_prefix = "mycli_"
 name = "mycli"
 cli_name = "mycli"
 ```
 
-With the default prefix this resolves to `FOXY_COMMANDS_DIR`.
+With the default prefix this resolves to `mycli_COMMANDS_DIR`.
 
 - `name`: branded display name used in CLI metadata output (for example, banner/version text)
 - `cli_name`: command name used as the CLI program name
 
 With the default prefix, supported override variables are:
 
-- `FOXY_COMMANDS_DIR`
-- `FOXY_REBRAND_PROJECT_ROOT`
+- `mycli_COMMANDS_DIR`
+- `mycli_REBRAND_PROJECT_ROOT`
 
 ## Development tasks
 
@@ -141,7 +141,7 @@ ENV=prod make lint
 ├── src/
 │   └── cli/
 │       ├── commands/           # Dynamic command plugins
-│       ├── dev.py              # Developer utilities ("Foxy dev …")
+│       ├── dev.py              # Developer utilities ("mycli dev …")
 │       ├── loader.py           # Command discovery + lazy loader
 │       └── main.py             # Console entry point
 ├── tests/
