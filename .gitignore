@@ -1,0 +1,64 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Build and distribution
+build/
+dist/
+.build/
+.dist/
+*.egg-info/
+.eggs/
+
+# Testing and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+junit.xml
+.tox/
+
+# Type checking and linting
+.mypy_cache/
+.ruff_cache/
+.pytype/
+.pyright/
+
+# Environment files (ignore all .env files with actual secrets)
+.env-build
+.env
+.env.local
+.env.dev
+.env.prod
+.env.staging
+.env.test
+
+# Command-specific .env files (but keep .env.example files)
+src/cli/commands/**/.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Documentation builds
+site/
+myclis/_build/
+
+# Project-specific
+*.log
+
+# Snyk Security Extension - AI Rules (auto-generated)
+.github/instructions/snyk_rules.instructions.md

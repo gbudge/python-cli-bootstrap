@@ -1,0 +1,5 @@
+short_help: Remove a SafeSettings repository file.
+hidden: false
+enabled: true
+packaged: false
+no_args_is_help: false

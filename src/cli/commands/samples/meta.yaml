@@ -1,0 +1,5 @@
+# help_group: Commands
+short_help: Samples showcasing how to create commands
+hidden: false
+enabled: true
+packaged: false

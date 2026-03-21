@@ -1,0 +1,5 @@
+short_help: List SafeSettings repository files.
+hidden: false
+enabled: true
+packaged: false
+no_args_is_help: false

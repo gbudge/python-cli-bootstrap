@@ -1,0 +1,5 @@
+# help_group: Math
+short_help: Add two integers
+hidden: false
+enabled: true
+packaged: false

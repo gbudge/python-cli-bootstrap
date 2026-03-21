@@ -1,0 +1,5 @@
+# help_group: Math
+short_help: Subtract two integers
+hidden: false
+enabled: true
+packaged: false

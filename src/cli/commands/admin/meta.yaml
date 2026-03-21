@@ -1,0 +1,6 @@
+help_group: Advanced
+short_help: Administrative commands
+hidden: false
+enabled: true
+packaged: false
+no_args_is_help: true
